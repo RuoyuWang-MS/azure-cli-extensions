@@ -64,3 +64,28 @@ class CustomDomainTests(ScenarioTest):
 
         self.cmd('spring-cloud certificate remove --name {cert} -g {rg} -s {serviceName}')
         self.cmd('spring-cloud certificate show --name {cert} -g {rg} -s {serviceName}', expect_failure=True)
+
+
+@record_only()
+class AppDeployTests(ScenarioTest):
+    @ResourceGroupPreparer()
+    def test_app_source_code_deploy(self):
+        source_app_path = os.path.abspath(os.path.join(os.path.abspath(__file__), '../test-apps/echo-app'))
+        self.kwargs.update({
+            'app': 'source-code-app',
+            'serviceName': self.create_random_name(prefix='source-code-deploy', length=24),
+            'path': '"{}"'.format(source_app_path)
+        })
+        print(self.kwargs['path'])
+        self.cmd('az spring-cloud create -g {rg} -n {serviceName}', checks=[
+            self.check('name', '{serviceName}'),
+            self.check('properties.provisioningState', 'Succeeded')
+        ])
+        self.cmd('az spring-cloud app create -g {rg} -n {app} -s {serviceName}', checks=[
+            self.check('name', '{app}'),
+            self.check('properties.provisioningState', 'Succeeded')
+        ])
+        self.cmd('az spring-cloud app deploy -g {rg} -n {app} -s {serviceName} --source-path {path} --verbose --debug', checks=[
+            self.check('name', 'default'),
+            self.check('properties.provisioningState', 'Succeeded')
+        ])
